@@ -1,0 +1,282 @@
+
+
+buildscript {
+    ext.buildConfig = [
+        'compileSdkVersion': 29,
+        'minSdkVersion': 16,
+        'targetSdkVersion': 29
+    ]
+    ext.versions = [
+        'architectureComponents': [
+            'lifecycle': '2.2.0',
+            'room': '2.2.5',
+            'paging': '2.1.2'
+        ],
+        'grpc':'1.34.1',
+        'coroutines': '1.3.9',
+        'junitJupiter': '5.6.1'
+    ]
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'https://jitpack.io'
+        }
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:4.0.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.10"
+        classpath "org.jetbrains.kotlin:kotlin-allopen:1.4.10"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:0.10.1"
+        classpath "com.github.ben-manes:gradle-versions-plugin:0.31.0"
+        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.9"
+        classpath 'com.getkeepsafe.dexcount:dexcount-gradle-plugin:1.0.2'
+        classpath 'com.github.str4d:rust-android-gradle:68b4ecc053'
+        classpath 'org.owasp:dependency-check-gradle:6.0.0'
+        classpath "gradle.plugin.com.dorongold.plugins:task-tree:1.5"
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.5'
+    }
+}
+
+apply from: 'custom-tasks.gradle'
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-allopen'
+apply plugin: 'org.jetbrains.dokka'
+apply plugin: 'com.google.protobuf'
+apply plugin: 'com.github.ben-manes.versions'
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'com.getkeepsafe.dexcount'
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+apply plugin: 'org.owasp.dependencycheck'
+apply plugin: "com.dorongold.task-tree"
+
+
+
+group = "cash.z.ecc.android"
+version = "1.1.0-beta10"
+
+repositories {
+    google()
+    jcenter()
+    maven { url 'https://jitpack.io' }
+}
+
+android {
+    compileSdkVersion buildConfig.compileSdkVersion
+
+    useLibrary 'android.test.runner'
+
+    ndkVersion "21.1.6352462"
+
+    defaultConfig {
+        minSdkVersion buildConfig.minSdkVersion
+        targetSdkVersion buildConfig.targetSdkVersion
+        versionCode = 1_01_00_210
+        versionName = "1.1.0-beta10"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments clearPackageData: 'true'
+        multiDexEnabled true
+        archivesBaseName = "zcash-android-sdk-1.1.0-beta10"
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+            }
+        }
+    }
+
+  buildTypes {
+        debug {
+            // for test builds, which exceed the dex limit because they pull in things like mockito and grpc-testing
+            multiDexEnabled true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+        release {
+            multiDexEnabled false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+
+
+    sourceSets {
+        main {
+            java {
+                srcDirs "build/generated/source/grpc"
+            }
+            proto {
+                srcDir 'src/main/proto'
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // ExperimentalCoroutinesApi and FlowPreview help to clear the build warnings
+    kotlinOptions {
+        jvmTarget = "1.8"
+        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.FlowPreview"
+    }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude 'META-INF/LICENSE.md'
+        exclude 'META-INF/LICENSE-notice.md'
+    }
+}
+
+allOpen {
+    // marker for classes that we want to be able to extend in debug builds for testing purposes
+    annotation 'cash.z.ecc.android.sdk.annotation.OpenClass'
+}
+
+clean {
+    delete "$project.projectDir/src/generated/source/grpc"
+}
+
+dokka {
+    outputFormat = 'html'
+    outputDirectory = "$buildDir/docs/rtd"
+}
+
+protobuf {
+    generatedFilesBaseDir = "$projectDir/src/generated/source/grpc"
+    protoc { artifact = 'com.google.protobuf:protoc:3.14.0' }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${versions.grpc}" }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                java {
+                    option "lite"
+                }
+            }
+            task.plugins {
+                grpc {
+                    option 'lite'
+                }
+            }
+        }
+    }
+}
+
+cargo {
+    module = "."
+    libname = "zcashwalletsdk"
+    targets = [
+        //"arm",
+        "arm64",
+        //"x86",
+        //"x86_64"
+    ]
+    profile = "release"
+    forceTargets = true
+    prebuiltToolchains = true
+
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.3.0-alpha02'
+
+    // Architecture Components: Lifecycle
+    implementation "androidx.lifecycle:lifecycle-runtime:${versions.architectureComponents.lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-extensions:${versions.architectureComponents.lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-common-java8:${versions.architectureComponents.lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.0"
+
+    // Architecture Components: Room
+    implementation "androidx.room:room-runtime:${versions.architectureComponents.room}"
+    implementation "androidx.room:room-common:${versions.architectureComponents.room}"
+    implementation "androidx.room:room-ktx:${versions.architectureComponents.room}"
+    implementation "androidx.paging:paging-runtime-ktx:${versions.architectureComponents.paging}"
+    kapt "androidx.room:room-compiler:${versions.architectureComponents.room}"
+
+    // Kotlin
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.4.10"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+
+    //novacrypto
+    implementation 'io.github.novacrypto:BIP39:2019.01.27'
+    implementation 'io.github.novacrypto:securestring:2019.01.27'
+
+    // grpc-java
+    implementation "io.grpc:grpc-okhttp:${versions.grpc}"
+    implementation "io.grpc:grpc-android:${versions.grpc}"
+    implementation "io.grpc:grpc-protobuf-lite:${versions.grpc}"
+    implementation "io.grpc:grpc-stub:${versions.grpc}"
+    compileOnly 'javax.annotation:javax.annotation-api:1.3.2'
+    // solves error: Duplicate class com.google.common.util.concurrent.ListenableFuture found in modules jetified-guava-26.0-android.jar (com.google.guava:guava:26.0-android) and listenablefuture-1.0.jar (com.google.guava:listenablefuture:1.0)
+    // per this recommendation from Chris Povirk, given guava's decision to split ListenableFuture away from Guava: https://groups.google.com/d/msg/guava-discuss/GghaKwusjcY/bCIAKfzOEwAJ
+    implementation 'com.google.guava:guava:27.0.1-android'
+
+    // Transitive dependencies used because they're already necessary for other libraries
+    // GSON is available as a transitive dependency from several places so we use it for processing
+    // checkpoints but also document that by explicitly including here. If dependencies like Room
+    // or grpc-okhttp stop including GSON, then we should switch to something else for parsing JSON.
+    implementation 'com.google.code.gson:gson:2.8.6'
+    // OKIO is a transitive dependency used when writing param files to disk. Like GSON, this can be
+    // replaced if needed. For compatibility, we match the library version used in grpc-okhttp:
+    // https://github.com/grpc/grpc-java/blob/v1.34.x/build.gradle#L154
+    implementation 'com.squareup.okio:okio:1.13.0'
+
+    // Tests
+    testImplementation 'androidx.multidex:multidex:2.0.1'
+    testImplementation "org.jetbrains.kotlin:kotlin-reflect:1.4.10"
+    testImplementation 'org.mockito:mockito-junit-jupiter:3.5.10'
+    testImplementation 'com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0'
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${versions.junitJupiter}"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:${versions.junitJupiter}"
+    testImplementation "org.junit.jupiter:junit-jupiter-migrationsupport:${versions.junitJupiter}"
+    testImplementation "io.grpc:grpc-testing:${versions.grpc}"
+
+    // NOTE: androidTests will use JUnit4, while src/test/java tests will leverage Junit5
+    // Attempting to use JUnit5 via https://github.com/mannodermaus/android-junit5 was painful. The plugin configuration
+    // was buggy, crashing in several places. It also would require a separate test flavor because it's minimum API 26
+    // because "JUnit 5 uses Java 8-specific APIs that didn't exist on Android before the Oreo release."
+    androidTestImplementation 'com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0'
+    androidTestImplementation 'org.mockito:mockito-android:3.5.10'
+    androidTestImplementation "androidx.test:runner:1.3.0"
+    androidTestImplementation "androidx.test:core:1.3.0"
+    androidTestImplementation "androidx.arch.core:core-testing:2.1.0"
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
+    androidTestImplementation 'androidx.test:runner:1.3.0'
+
+    // sample mnemonic plugin
+    androidTestImplementation 'com.github.zcash:zcash-android-wallet-plugins:1.0.1'
+    androidTestImplementation 'cash.z.ecc.android:kotlin-bip39:1.0.1'
+}
+
+taskTree{
+    noRepeat = true  //do not print a sub-tree in the task-tree more than once
+    impliesSubProjects = true  //do not print task-tree for child projects in a multi-project
+    taskDepth = 2 // limit tree depth to 3. Equivalent to running with the --task-depth option.
+}
+
+// defaultTasks 'ciBuild'
+
+preBuild.dependsOn includeDirBugFix
+//check.dependsOn dependencyCheckAggregate

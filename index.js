@@ -16,5 +16,18 @@ export default {
       })
       .catch(err => reject(err))
     })
+  },
+  deriveSpendingKeys: (seed, ranbool, numberOfAccounts) => {
+    return new Promise((resolve, reject) => {
+      VerusLightClient.deriveSpendingKeys(seed, ranbool, numberOfAccounts)
+      .then(res => {
+        if (Platform.OS === 'android') {
+          resolve(JSON.parse(res))
+        } else {
+          resolve(res)
+        }
+      })
+      .catch(err => reject(err))
+    })
   }
 };

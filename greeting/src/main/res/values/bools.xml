@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="lightwalletd_allow_very_insecure_connections">false</bool>
+    <bool name="is_mainnet">true</bool>
+</resources>

@@ -1,0 +1,4 @@
+include ':app'
+include ":sdk"
+project(":sdk").projectDir =  file("C:\\Users\\chris\\TH\\react-native-verus-light-client\\greeting")
+rootProject.name='Demo App'

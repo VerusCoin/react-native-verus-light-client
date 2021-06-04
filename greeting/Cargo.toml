@@ -1,0 +1,72 @@
+[package]
+name = "zcash-android-wallet-sdk"
+version = "0.0.4"
+authors = [
+    "Jack Grigg <jack@z.cash>",
+    "Kevin Gorham <kevin.gorham@z.cash>",
+]
+description = "JNI backend for the Android wallet SDK"
+publish = false
+edition = "2018"
+
+[dependencies]
+android_logger = "0.9"
+failure = "0.1"
+hex = "0.4"
+jni = { version = "0.17", default-features = false }
+log = "0.4"
+log-panics = "2.0.0"
+zcash_client_backend = "0.4"
+zcash_client_sqlite = "0.2.1"
+zcash_primitives = "0.4"
+zcash_proofs = "0.4"
+
+#### Temporary additions: ####################################
+base58 = "0.1.0"
+protobuf = "2"
+sha2 = "0.9"
+bs58 = { version = "0.3", features = ["check"] }
+hdwallet = "0.2.2"
+ripemd160 = "0.9"
+secp256k1 = "0.17.2"
+##############################################################
+
+# update-sapling-tree dependencies
+bls12_381 = { version = "0.3", optional = true }
+futures = { version = "0.3", optional = true }
+grpc = { version = "0.8", optional = true }
+grpc-protobuf = { version = "0.8", optional = true }
+httpbis = { version = "0.9", optional = true }
+tls-api = { version = "0.4", optional = true }
+tls-api-rustls = { version = "0.4", optional = true }
+
+
+[build-dependencies]
+protobuf-codegen-pure = "2.14"
+
+[patch.crates-io]
+zcash_client_backend = { git = 'https://github.com/michaeltout/librustzcash.git', branch='mutable_chain_network' }
+zcash_client_sqlite = { git = 'https://github.com/michaeltout/librustzcash.git', branch='mutable_chain_network' }
+zcash_primitives = { git = 'https://github.com/michaeltout/librustzcash.git', branch='mutable_chain_network' }
+zcash_proofs = { git = 'https://github.com/michaeltout/librustzcash.git', branch='mutable_chain_network' }
+
+# Uncomment this to test librustzcash changes locally
+#[patch.crates-io]
+#zcash_client_backend = { path = '../../clones/librustzcash/zcash_client_backend' }
+#zcash_client_sqlite = { path = '../../clones/librustzcash/zcash_client_sqlite' }
+#zcash_primitives = { path = '../../clones/librustzcash/zcash_primitives' }
+#zcash_proofs = { path = '../../clones/librustzcash/zcash_proofs' }
+
+[features]
+mainnet = ["zcash_client_sqlite/mainnet"]
+updater = ["bls12_381", "futures", "grpc", "grpc-protobuf", "httpbis", "tls-api", "tls-api-rustls"]
+
+[lib]
+name = "zcashwalletsdk"
+path = "src/main/rust/lib.rs"
+crate-type = ["staticlib", "cdylib"]
+
+[[bin]]
+name = "update-sapling-tree"
+path = "src/main/rust/bin/update_sapling_tree.rs"
+required-features = ["updater"]
